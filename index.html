@@ -554,7 +554,7 @@ function pill(d){
 }
 
 function viewToday(){
-  var d = curDay || currentDay();
+  var d = curDay || (function(){for(var i=0;i<DAYS.length;i++){if(!DONE[DAYS[i].date])return DAYS[i];}return currentDay();})();
   var L = LS[String(d.day)];
   var dleft = daysBetween(todayISO(), C.end);
   var isDone = !!DONE[d.date];
