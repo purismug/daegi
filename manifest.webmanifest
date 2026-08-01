@@ -1,0 +1,32 @@
+{
+ "name": "대기관리기술사 학습앱",
+ "short_name": "대기기술사",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#0f1216",
+ "theme_color": "#0f1216",
+ "lang": "ko",
+ "description": "대기관리기술사 194일 커리큘럼·일일학습·캘린더 스트릭",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
