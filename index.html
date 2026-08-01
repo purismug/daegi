@@ -148,6 +148,19 @@ h2.sec{font-size:13px;font-weight:700;color:var(--tx2);letter-spacing:.4px;margi
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .mini{font-size:11.5px;color:var(--tx2)}
 .dday{font-size:12px;font-weight:700;color:var(--warn)}
+/* ---- 듣기 플레이어 ---- */
+.ply{padding:14px 16px}
+.nowtx{font-size:14px;line-height:1.7;color:var(--tx);background:var(--card2);border:1px solid var(--line);
+ border-radius:10px;padding:12px 13px;min-height:72px;margin-bottom:13px;word-break:keep-all}
+.plyrow{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:12px}
+.pbtn{width:52px;height:46px;border-radius:11px;border:1px solid var(--line);background:var(--card2);
+ color:var(--tx);font-size:16px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.pbtn:active{transform:scale(.95)}
+.pbtn.big{width:76px;height:54px;background:var(--ac);color:#062018;border:0;font-size:22px;font-weight:700}
+.plyrow2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rbtn{padding:7px 11px;border-radius:9px;border:1px solid var(--line);background:var(--card2);
+ color:var(--tx2);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.rbtn.on{background:var(--ac);color:#062018;border-color:var(--ac)}
 
 </style>
 </head>
@@ -159,9 +172,270 @@ window.LESSONS={"1":{"day":1,"date":"2026-08-01","title":"대기의 연직구조
 
 </script>
 <script>
-/* 대기관리기술사 학습앱 v1.0 */
+/* 대기관리기술사 학습앱 v1.1 (듣기 기능 포함) */
 (function(){
 'use strict';
+/* ===== 듣기(TTS) 모듈 ===== */
+var TTS = (function(){
+'use strict';
+
+/* --- 기호·단위 읽기 사전 --- */
+var SYM = [
+  [/㎍\/㎥/g,'마이크로그램 퍼 세제곱미터'], [/mg\/m³/g,'밀리그램 퍼 세제곱미터'],
+  [/g\/m³/g,'그램 퍼 세제곱미터'], [/㎍\/m³/g,'마이크로그램 퍼 세제곱미터'],
+  [/g\/m²·s/g,'그램 퍼 제곱미터 초'], [/g\/m·s/g,'그램 퍼 미터 초'],
+  [/m³\/hr?/g,'세제곱미터 퍼 아워'], [/m\/s²/g,'미터 퍼 초 제곱'],
+  [/m²\/s/g,'제곱미터 퍼 초'], [/m\/s/g,'미터 퍼 초'], [/km\/h/g,'킬로미터 퍼 아워'],
+  [/kJ\/kg·K/g,'킬로줄 퍼 킬로그램 켈빈'], [/J\/kg/g,'줄 퍼 킬로그램'],
+  [/W\/m²/g,'와트 퍼 제곱미터'], [/N\/m²/g,'뉴턴 퍼 제곱미터'],
+  [/㎛/g,'마이크로미터'], [/㎥/g,'세제곱미터'], [/㎡/g,'제곱미터'],
+  [/mmH₂O/g,'밀리미터 수주'], [/mmHg/g,'밀리미터 수은주'],
+  [/℃\/100m/g,'도 퍼 100미터'], [/℃\/km/g,'도 퍼 킬로미터'], [/℃/g,'도'],
+  [/°C/g,'도'], [/°/g,'도'],
+  [/m⁴\/s³/g,'미터 4제곱 퍼 초 3제곱'],
+  [/hPa/g,'헥토파스칼'], [/kPa/g,'킬로파스칼'],
+  [/keq\/ha·yr/g,'킬로당량 퍼 헥타르 년'],
+  [/\bppm\b/g,'피피엠'], [/\bppb\b/g,'피피비'], [/\bDU\b/g,'디유'],
+  [/PM-?2\.5/g,'피엠 이점오'], [/PM-?10/g,'피엠 십'],
+  [/PM2\.5/g,'피엠 이점오'], [/PM10/g,'피엠 십'],
+  [/SO₄²⁻/g,'황산이온'], [/NO₃⁻/g,'질산이온'], [/NH₄⁺/g,'암모늄이온'],
+  [/H₂SO₄/g,'황산'], [/HNO₃/g,'질산'], [/H₂O₂/g,'과산화수소'], [/H₂O/g,'물'],
+  [/H₂S/g,'황화수소'], [/CO₂/g,'이산화탄소'], [/SO₂/g,'이산화황'], [/SO₃/g,'삼산화황'],
+  [/NO₂/g,'이산화질소'], [/N₂O₅/g,'오산화이질소'], [/N₂O/g,'아산화질소'], [/N₂/g,'질소'],
+  [/O₃/g,'오존'], [/O₂/g,'산소'], [/CH₄/g,'메탄'], [/NH₃/g,'암모니아'],
+  [/SOx/g,'속스'], [/NOx/g,'녹스'], [/HCl/g,'염화수소'],
+  [/V₂O₅/g,'오산화바나듐'], [/CaCO₃/g,'탄산칼슘'],
+  [/Γd/g,'감마 디'], [/Γs/g,'감마 에스'], [/Γ/g,'감마'],
+  [/σy₀/g,'시그마 와이 제로'], [/σz₀/g,'시그마 제트 제로'],
+  [/σy/g,'시그마 와이'], [/σz/g,'시그마 제트'], [/σθ/g,'시그마 세타'], [/σu/g,'시그마 유'],
+  [/σ/g,'시그마'], [/θe/g,'세타 이'], [/θv/g,'세타 브이'], [/θ/g,'세타'],
+  [/Λ/g,'람다'], [/λ/g,'람다'], [/ρ/g,'로'], [/τ₀/g,'타우 제로'], [/τ/g,'타우'],
+  [/φ/g,'파이'], [/Ω/g,'오메가'], [/ω/g,'오메가'], [/Δ/g,'델타'], [/∂/g,'편미분'],
+  [/π/g,'파이'], [/χ²/g,'카이제곱'], [/ε/g,'엡실론'], [/μ/g,'뮤'], [/α/g,'알파'], [/β/g,'베타'],
+  [/u\*/g,'유 스타'], [/w\*/g,'더블유 스타'],
+  [/cm³/g,'세제곱센티미터'], [/km³/g,'세제곱킬로미터'], [/m³/g,'세제곱미터'],
+  [/cm²/g,'제곱센티미터'], [/km²/g,'제곱킬로미터'], [/m²/g,'제곱미터'],
+  [/µg\/m³|μg\/m³/g,'마이크로그램 퍼 세제곱미터'], [/µm|μm/g,'마이크로미터'],
+  [/10⁻([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, function(_,d){return '10의 마이너스 '+supNum(d)+'승';}],
+  [/10([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, function(_,d){return '10의 '+supNum(d)+'승';}],
+  [/⁻¹/g,' 분의 1'],
+  [/([가-힣A-Za-z0-9)\]])([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, function(_,a,d){return a+'의 '+supNum(d)+'승';}],
+  [/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, function(m){return supNum(m)+'승';}],
+  [/[₀₁₂₃₄₅₆₇₈₉]+/g, function(m){return subNum(m);}],
+  [/√\(2π\)/g,'루트 2파이'], [/√/g,'루트 '],
+  [/≒/g,'약'], [/≈/g,'약'], [/≥/g,' 이상'], [/≤/g,' 이하'], [/≪/g,'보다 훨씬 작고'],
+  [/≫/g,'보다 훨씬 크고'], [/≠/g,'가 아니고'], [/⇌/g,'평형'],
+  [/→/g,', '], [/←/g,', '], [/↔/g,', '], [/↑/g,' 증가'], [/↓/g,' 감소'],
+  [/∝/g,'에 비례하고'], [/Σ/g,'시그마 합'], [/∇/g,'델'], [/∞/g,'무한대'],
+  [/·/g,' '], [/×/g,' 곱하기 '], [/÷/g,' 나누기 '],
+  [/(\d)\s*~\s*(\d)/g,'$1에서 $2'], [/~/g,' 내지 '],
+  [/％|%/g,'퍼센트'],
+  [/Ⅰ/g,'1'],[/Ⅱ/g,'2'],[/Ⅲ/g,'3'],[/Ⅳ/g,'4'],[/Ⅴ/g,'5'],
+  [/Ⅵ/g,'6'],[/Ⅶ/g,'7'],[/Ⅷ/g,'8'],[/Ⅸ/g,'9'],
+  [/①/g,'1'],[/②/g,'2'],[/③/g,'3'],[/④/g,'4'],[/⑤/g,'5'],
+  [/★/g,''], [/☐/g,''], [/✔/g,''], [/✅/g,''], [/📘/g,''], [/⚪/g,''], [/🔥/g,''],
+  [/「|」|『|』/g,' '], [/[（(]([^)）]{1,3})[)）]/g,' $1 '],
+  [/[「」【】〈〉《》]/g,' ']
+];
+
+var SUP='⁰¹²³⁴⁵⁶⁷⁸⁹', SUB='₀₁₂₃₄₅₆₇₈₉';
+function supNum(s){ return s.split('').map(function(c){return SUP.indexOf(c);}).join(''); }
+function subNum(s){ return s.split('').map(function(c){return SUB.indexOf(c);}).join(''); }
+
+function sym(t){
+  for(var i=0;i<SYM.length;i++) t = t.replace(SYM[i][0], SYM[i][1]);
+  // 최종 정리: 남은 마크다운·수학기호 제거
+  t = t.replace(/u\s*\*+/g,'유 스타').replace(/w\s*\*+/g,'더블유 스타');
+  t = t.replace(/\|/g,' ').replace(/\*/g,'');
+  t = t.replace(/\s+/g,' ');
+  return t;
+}
+
+function inlineClean(t){
+  return t.replace(/\*\*([^*]+)\*\*/g,'$1')
+          .replace(/\*([^*\n]+)\*/g,'$1')
+          .replace(/`([^`]+)`/g,'$1')
+          .replace(/\\/g,'')
+          .replace(/\s+/g,' ').trim();
+}
+
+/* 마크다운 → 읽기용 문장 배열 */
+function toSpeech(md){
+  var lines = md.split('\n'), out = [], i = 0;
+  function push(s){
+    s = sym(inlineClean(s));
+    s = s.replace(/\s+/g,' ').replace(/^[\s.,·-]+/,'').trim();
+    if(s.length > 1) out.push(s);
+  }
+  while(i < lines.length){
+    var l = lines[i];
+    if(/^```/.test(l)){                        // 코드블록(흐름도) — 건너뜀
+      i++; while(i<lines.length && !/^```/.test(lines[i])) i++;
+      i++; continue;
+    }
+    if(/^\|/.test(l) && i+1<lines.length && /^\|[\s:\-|]+\|?\s*$/.test(lines[i+1])){
+      var cells = function(r){
+        var a = r.split('|'); a.shift();
+        if(a.length && /^\s*$/.test(a[a.length-1])) a.pop();
+        return a.map(function(x){ return inlineClean(x); });
+      };
+      var head = cells(l); i += 2;
+      var rows = [];
+      while(i<lines.length && /^\|/.test(lines[i])){ rows.push(cells(lines[i])); i++; }
+      rows.forEach(function(r){
+        if(!r.length) return;
+        var first = r[0];
+        if(!first) return;
+        var parts = [];
+        for(var k=1;k<r.length;k++){
+          var v = r[k];
+          if(!v || v==='-' || v==='—') continue;
+          var h = head[k] || '';
+          parts.push(h ? (h + ' ' + v) : v);
+        }
+        push(parts.length ? (first + ', ' + parts.join(', ') + '.') : (first + '.'));
+      });
+      continue;
+    }
+    var hm = l.match(/^(#{1,4})\s+(.*)$/);
+    if(hm){ push(hm[2] + '.'); i++; continue; }
+    if(/^---+\s*$/.test(l)){ i++; continue; }
+    if(/^>\s?/.test(l)){ push(l.replace(/^>\s?/,'')); i++; continue; }
+    if(/^\s*\d+\.\s+/.test(l)){ push(l.replace(/^\s*(\d+)\.\s+/,'$1. ')); i++; continue; }
+    if(/^\s*[-*]\s+/.test(l)){ push(l.replace(/^\s*[-*]\s+/,'')); i++; continue; }
+    if(/^\s*$/.test(l)){ i++; continue; }
+    push(l); i++;
+  }
+  // 긴 문장 분할 (안드로이드 TTS 안정성)
+  var fin = [];
+  out.forEach(function(s){
+    if(s.length <= 170){ fin.push(s); return; }
+    var buf = '';
+    s.split(/(?<=[.。!?])\s+|(?<=다)\s+(?=[가-힣])|,\s+/).forEach(function(p){
+      if((buf + p).length > 170 && buf){ fin.push(buf.trim()); buf = ''; }
+      buf += p + ' ';
+    });
+    if(buf.trim()) fin.push(buf.trim());
+  });
+  return fin;
+}
+
+/* 하루 분량 전체를 재생 큐로 */
+function buildQueue(L){
+  var q = [];
+  q.push({sec:'제목', t:'오늘의 주제. ' + sym(L.title) + '.'});
+  q.push({sec:'키워드', t:'핵심 키워드 5가지입니다.'});
+  L.keywords.forEach(function(k,i){
+    q.push({sec:'키워드', t:(i+1) + '. ' + sym(inlineClean(k.k)) + '. ' + k.subs.map(function(s){return sym(inlineClean(s));}).join(', ') + '.'});
+  });
+  q.push({sec:'답안', t:'이제 메인 답안입니다.'});
+  toSpeech(L.answer).forEach(function(t){ q.push({sec:'답안', t:t}); });
+  L.side.forEach(function(s,i){
+    q.push({sec:'사이드'+(i+1), t:'사이드 주제 ' + (i+1) + '. ' + sym(inlineClean(s.title)) + '.'});
+    toSpeech(s.body).forEach(function(t){ q.push({sec:'사이드'+(i+1), t:t}); });
+  });
+  q.push({sec:'종료', t:'오늘 분량이 끝났습니다. 수고하셨습니다.'});
+  return q;
+}
+
+return { toSpeech: toSpeech, buildQueue: buildQueue, sym: sym };
+})();
+
+/* ===== 재생 엔진 ===== */
+var Player = (function(){
+'use strict';
+var SUP = ('speechSynthesis' in window);
+var q=[], idx=0, playing=false, rate=1.0, voice=null, wake=null, curDayNo=null;
+var onTick = function(){};
+
+function pickVoice(){
+  if(!SUP) return null;
+  var vs = speechSynthesis.getVoices()||[];
+  var ko = vs.filter(function(v){ return /^ko(-|_)?/i.test(v.lang||''); });
+  return ko[0] || null;
+}
+if(SUP){
+  try{ speechSynthesis.onvoiceschanged = function(){ voice = pickVoice(); }; }catch(e){}
+}
+
+function reqWake(){
+  if(!('wakeLock' in navigator)) return;
+  navigator.wakeLock.request('screen').then(function(w){
+    wake = w;
+    w.addEventListener('release', function(){ wake = null; });
+  }).catch(function(){});
+}
+function relWake(){ if(wake){ try{ wake.release(); }catch(e){} wake=null; } }
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='visible' && playing) reqWake();
+});
+
+function speakAt(i){
+  if(!SUP || i>=q.length){ stop(true); return; }
+  idx = i; onTick();
+  var u = new SpeechSynthesisUtterance(q[i].t);
+  u.lang='ko-KR'; u.rate=rate; u.pitch=1;
+  if(voice) u.voice=voice;
+  u.onend = function(){ if(playing) speakAt(idx+1); };
+  u.onerror = function(){ if(playing) setTimeout(function(){ speakAt(idx+1); },250); };
+  try{ speechSynthesis.speak(u); }catch(e){}
+}
+
+function load(dayNo, L){
+  if(curDayNo!==dayNo){ q = TTS.buildQueue(L); idx = 0; curDayNo = dayNo; }
+  return q.length;
+}
+function play(){
+  if(!SUP || !q.length) return;
+  if(!voice) voice = pickVoice();
+  playing = true; reqWake();
+  try{ speechSynthesis.cancel(); }catch(e){}
+  setTimeout(function(){ speakAt(idx); }, 60);
+  onTick();
+}
+function pause(){
+  playing = false; relWake();
+  try{ speechSynthesis.cancel(); }catch(e){}
+  onTick();
+}
+function stop(done){
+  playing = false; relWake();
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if(done) idx = 0;
+  onTick();
+}
+function jump(d){
+  var n = Math.max(0, Math.min(q.length-1, idx+d));
+  idx = n;
+  if(playing){ try{ speechSynthesis.cancel(); }catch(e){} setTimeout(function(){ speakAt(idx); },60); }
+  else onTick();
+}
+function jumpSection(dir){
+  var cur = q[idx] ? q[idx].sec : null, i = idx;
+  while(i>=0 && i<q.length){
+    i += dir;
+    if(!q[i]) break;
+    if(q[i].sec !== cur){ break; }
+  }
+  idx = Math.max(0, Math.min(q.length-1, i));
+  if(playing){ try{ speechSynthesis.cancel(); }catch(e){} setTimeout(function(){ speakAt(idx); },60); }
+  else onTick();
+}
+function setRate(r){
+  rate = r;
+  if(playing){ try{ speechSynthesis.cancel(); }catch(e){} setTimeout(function(){ speakAt(idx); },60); }
+  else onTick();
+}
+return {
+  supported: SUP, load: load, play: play, pause: pause, stop: stop,
+  jump: jump, jumpSection: jumpSection, setRate: setRate,
+  isPlaying: function(){ return playing; },
+  pos: function(){ return {i: idx, n: q.length, sec: q[idx]?q[idx].sec:'', t: q[idx]?q[idx].t:''}; },
+  rate: function(){ return rate; },
+  onTick: function(f){ onTick = f; }
+};
+})();
+
 var C = window.CURRICULUM, LS = window.LESSONS;
 var KEY='amt_done_v1', KEYSET='amt_settings_v1';
 var app=document.getElementById('app');
@@ -303,6 +577,7 @@ function viewToday(){
     app.innerHTML=h; bindToday(d); return;
   }
   /* keywords */
+  h+=playerHTML();
   h+='<h2 class="sec">핵심 키워드 5</h2><div class="card">';
   L.keywords.forEach(function(k,idx){
     h+='<div class="kw"><b>'+(idx+1)+'. '+k.k+'</b><ul>'+k.subs.map(function(s){return '<li>'+s+'</li>';}).join('')+'</ul></div>';
@@ -326,7 +601,56 @@ function viewToday(){
     h+='<div style="height:9px"></div><button class="btn ghost" id="goto">오늘로 돌아가기</button>';
   }
   h+='</div>';
-  app.innerHTML=h; bindToday(d);
+  app.innerHTML=h; bindToday(d); bindPlayer(d,L);
+}
+function playerHTML(){
+  if(!Player.supported) return '';
+  var p=Player.pos(), on=Player.isPlaying();
+  var pct=p.n?Math.round((p.i+1)/p.n*100):0;
+  var h='<h2 class="sec">듣기 (운전 중 학습)</h2><div class="card ply">';
+  h+='<div class="row" style="margin-bottom:10px"><div><span class="badge ac">'+(p.sec||'대기')+'</span> <span class="mini">'+(p.n?(p.i+1)+' / '+p.n+' 문장':'준비')+'</span></div><span class="mini">'+pct+'%</span></div>';
+  h+='<div class="pbar" style="margin:0 0 12px"><i style="width:'+pct+'%"></i></div>';
+  h+='<div class="nowtx" id="nowtx">'+(p.t?esc(p.t):'재생 버튼을 누르면 오늘 분량을 처음부터 끝까지 읽어줍니다.')+'</div>';
+  h+='<div class="plyrow">';
+  h+='<button class="pbtn" id="pPrevS" title="이전 구간">⏮</button>';
+  h+='<button class="pbtn" id="pPrev" title="이전 문장">◀</button>';
+  h+='<button class="pbtn big" id="pPlay">'+(on?'⏸':'▶')+'</button>';
+  h+='<button class="pbtn" id="pNext" title="다음 문장">▶</button>';
+  h+='<button class="pbtn" id="pNextS" title="다음 구간">⏭</button>';
+  h+='</div>';
+  h+='<div class="plyrow2"><span class="mini">속도</span>';
+  [0.8,1.0,1.2,1.4,1.6].forEach(function(r){
+    h+='<button class="rbtn'+(Math.abs(Player.rate()-r)<0.01?' on':'')+'" data-r="'+r+'">'+r.toFixed(1)+'x</button>';
+  });
+  h+='<button class="rbtn" id="pStop">처음</button></div>';
+  h+='<div class="mini" style="margin-top:10px">화면이 꺼지면 재생이 멈춥니다. 차량 거치대에 두고 화면을 켜두세요. 운전 중에는 조작하지 마시고 출발 전에 재생을 눌러두시면 끝까지 이어집니다.</div>';
+  h+='</div>';
+  return h;
+}
+function bindPlayer(d,L){
+  if(!Player.supported||!L) return;
+  Player.load(d.day,L);
+  Player.onTick(function(){
+    var p=Player.pos(), on=Player.isPlaying();
+    var el=document.getElementById('nowtx'); if(el&&p.t) el.textContent=p.t;
+    var pb=document.getElementById('pPlay'); if(pb) pb.textContent=on?'⏸':'▶';
+    var bar=document.querySelector('.ply .pbar i'); if(bar&&p.n) bar.style.width=Math.round((p.i+1)/p.n*100)+'%';
+    var rw=document.querySelector('.ply .row'); if(rw&&p.n) rw.innerHTML='<div><span class="badge ac">'+(p.sec||'')+'</span> <span class="mini">'+(p.i+1)+' / '+p.n+' 문장</span></div><span class="mini">'+Math.round((p.i+1)/p.n*100)+'%</span>';
+  });
+  var g=function(id){return document.getElementById(id);};
+  if(g('pPlay')) g('pPlay').onclick=function(){ Player.isPlaying()?Player.pause():Player.play(); };
+  if(g('pPrev')) g('pPrev').onclick=function(){ Player.jump(-1); };
+  if(g('pNext')) g('pNext').onclick=function(){ Player.jump(1); };
+  if(g('pPrevS')) g('pPrevS').onclick=function(){ Player.jumpSection(-1); };
+  if(g('pNextS')) g('pNextS').onclick=function(){ Player.jumpSection(1); };
+  if(g('pStop')) g('pStop').onclick=function(){ Player.stop(true); toast('처음으로 이동'); };
+  Array.prototype.forEach.call(document.querySelectorAll('.rbtn[data-r]'),function(b){
+    b.onclick=function(){
+      Player.setRate(parseFloat(b.getAttribute('data-r')));
+      Array.prototype.forEach.call(document.querySelectorAll('.rbtn[data-r]'),function(x){x.classList.remove('on');});
+      b.classList.add('on');
+    };
+  });
 }
 function bindToday(d){
   var mk=document.getElementById('mk');
@@ -336,8 +660,8 @@ function bindToday(d){
     saveDone(DONE); viewToday();
   };
   var p=document.getElementById('prev'), n=document.getElementById('next'), g=document.getElementById('goto');
-  if(p) p.onclick=function(){curDay=BYDAY[d.day-1];window.scrollTo(0,0);viewToday();};
-  if(n) n.onclick=function(){curDay=BYDAY[d.day+1];window.scrollTo(0,0);viewToday();};
+  if(p) p.onclick=function(){Player.stop(true);curDay=BYDAY[d.day-1];window.scrollTo(0,0);viewToday();};
+  if(n) n.onclick=function(){Player.stop(true);curDay=BYDAY[d.day+1];window.scrollTo(0,0);viewToday();};
   if(g) g.onclick=function(){curDay=null;window.scrollTo(0,0);viewToday();};
 }
 
@@ -490,6 +814,7 @@ function toast(msg){
 
 /* ---------- tabs ---------- */
 function setTab(t){
+  if(Player.supported && t!=='today') Player.pause();
   tab=t; window.scrollTo(0,0);
   Array.prototype.forEach.call(document.querySelectorAll('.tabs button'),function(b){
     b.classList.toggle('on', b.getAttribute('data-t')===t);
