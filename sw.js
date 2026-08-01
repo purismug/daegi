@@ -1,5 +1,5 @@
-var CACHE='daegi-v2';
-var ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+var CACHE='daegi-v3';
+var ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable-192.png','./icon-maskable-512.png'];
 self.addEventListener('install',function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(ASSETS);}).then(function(){return self.skipWaiting();}));
 });
